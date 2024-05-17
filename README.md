@@ -1,2 +1,2 @@
-# glicos-metro
+# glicosimetro
 IC
