@@ -1,34 +1,42 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <IOXhop_FirebaseESP32.h>
+#include <ArduinoJson.h>
 
-// Definição das credenciais de WiFi
-const char *ssid = "Martins WiFi6";
-const char *password = "17031998";
+#define WIFI_SSID "Martins WiFi6"
+#define WIFI_PASSWORD "17031998"
+#define FIREBASE_HOST "https://esp32-biomedicaleng-default-rtdb.firebaseio.com/"
+#define FIREBASE_AUTH "hYKKOkhqxLbpNhNRIWdPKdkWwdntFZyoAp20DR5y"
 
-// Inicialização do servidor web na porta 80
-WebServer server(80);
-const int redLed = 26;
-const int greenLed = 27;
-const int analog = 33;
+const int pot = 33;
+const int bufferSize = 1;
+int buffer[bufferSize];
+int bufferIndex = 0;
 
-// Função para lidar com requisições na rota principal ("/")
-void handleRoot() {
-}
-
-// Função de configuração inicial do dispositivo
 void setup() {
   Serial.begin(115200);
-  // Conecta-se à rede WiFi
-  WiFi.begin(ssid, password);
+  Serial.println();
+  pinMode(pot, INPUT);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
+  Serial.print("Conectando ao wifi");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Conectando ao WiFi...");
+    Serial.print(".");
+    delay(300);
   }
-  server.begin();
+  Serial.println("Wifi funcionando");
 
-  Serial.println("Servidor iniciado");
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
 }
 
-// Função principal que é executada repetidamente
 void loop() {
+  int teste = analogRead(pot);
+  buffer[bufferIndex++] = teste;
+  
+  if (bufferIndex >= bufferSize) {
+    bufferIndex = 0;
+    for (int i = 0; i < bufferSize; i++) {
+      Firebase.setInt("potenciometro", buffer[i]);}
+
+  Serial.println(teste);
+}
 }
