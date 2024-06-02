@@ -7,8 +7,8 @@
 #define FIREBASE_HOST "https://esp32-biomedicaleng-default-rtdb.firebaseio.com/"
 #define FIREBASE_AUTH "hYKKOkhqxLbpNhNRIWdPKdkWwdntFZyoAp20DR5y"
 
-const int pot = 33;
-const int bufferSize = 1;
+const int pot = 5;
+int bufferSize = 1;
 int buffer[bufferSize];
 int bufferIndex = 0;
 
