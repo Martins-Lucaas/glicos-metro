@@ -1521,7 +1521,7 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC_7351 nominal with elongated pad for handsoldering. (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor handsolder")
 		(property "Reference" "R5"
-			(at 0 -1.43 270)
+			(at 0 -1.43 -90)
 			(layer "F.SilkS")
 			(uuid "a670bce2-9735-484d-9842-2db400bf692b")
 			(effects
@@ -1532,7 +1532,7 @@
 			)
 		)
 		(property "Value" "R"
-			(at 0 1.43 270)
+			(at 0 1.43 -90)
 			(layer "F.Fab")
 			(uuid "1aaf5d63-68d4-4ea8-a167-97e43d421f6e")
 			(effects
@@ -1684,7 +1684,7 @@
 			(uuid "b139a8a2-e28a-4267-95d8-d8ccc633fa3b")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 0 270)
+			(at 0 0 -90)
 			(layer "F.Fab")
 			(uuid "a18cb577-40e6-41b3-b292-b90f23bd7bb9")
 			(effects
@@ -2567,7 +2567,7 @@
 		(descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC_7351 nominal with elongated pad for handsoldering. (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "resistor handsolder")
 		(property "Reference" "R4"
-			(at 0 -1.43 270)
+			(at 0 -1.43 -90)
 			(layer "F.SilkS")
 			(uuid "0946b339-ffa3-414e-a0ed-321a17d3e2a8")
 			(effects
@@ -2578,7 +2578,7 @@
 			)
 		)
 		(property "Value" "R"
-			(at 0 1.43 270)
+			(at 0 1.43 -90)
 			(layer "F.Fab")
 			(uuid "5c92b18a-aa1b-4e25-8818-a13ffc05bee0")
 			(effects
@@ -2730,7 +2730,7 @@
 			(uuid "5056e960-1b12-4b32-abbd-c2afd96275c7")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 0 270)
+			(at 0 0 -90)
 			(layer "F.Fab")
 			(uuid "468c2321-065d-4b04-8067-d2fd77a86c45")
 			(effects
@@ -2777,7 +2777,7 @@
 		(descr "LED SMD 1206 (3216 Metric), square (rectangular) end terminal, IPC_7351 nominal, (Body size source: http://www.tortai-tech.com/upload/download/2011102023233369053.pdf), generated with kicad-footprint-generator")
 		(tags "LED")
 		(property "Reference" "D3"
-			(at 0 -1.82 270)
+			(at 0 -1.82 -90)
 			(layer "F.SilkS")
 			(uuid "29d8562f-9c57-41cd-adda-5799822b04eb")
 			(effects
@@ -2960,7 +2960,7 @@
 			(uuid "1d557341-daca-452e-bda0-082f04eb2a5d")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 0 270)
+			(at 0 0 -90)
 			(layer "F.Fab")
 			(uuid "8b54a524-6299-4db0-969a-a14912cf49e0")
 			(effects
@@ -6161,5 +6161,38 @@
 		)
 		(layer "Edge.Cuts")
 		(uuid "c2f92f38-2092-4029-bd33-46c0008b544a")
+	)
+	(dimension
+		(type aligned)
+		(layer "Edge.Cuts")
+		(uuid "bf004a4a-a308-4235-b65d-3e5db62eb717")
+		(pts
+			(xy 167.22 113.51) (xy 209.77 113.59)
+		)
+		(height 6.65081)
+		(gr_text "42,5501 mm"
+			(at 188.484658 119.0508 359.892276)
+			(layer "Edge.Cuts")
+			(uuid "bf004a4a-a308-4235-b65d-3e5db62eb717")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(format
+			(prefix "")
+			(suffix "")
+			(units 3)
+			(units_format 1)
+			(precision 4)
+		)
+		(style
+			(thickness 0.05)
+			(arrow_length 1.27)
+			(text_position_mode 0)
+			(extension_height 0.58642)
+			(extension_offset 0.5) keep_text_aligned)
 	)
 )
