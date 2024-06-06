@@ -15,6 +15,7 @@ void setup() {
   pinMode(LED1_PIN, OUTPUT);
   pinMode(LED2_PIN, OUTPUT);
   Serial.begin(115200);
+
   xTaskCreatePinnedToCore(Task1, "Task1", 1000, NULL, 1, &Task1Handle, 0);
   xTaskCreatePinnedToCore(Task2, "Task2", 1000, NULL, 1, &Task2Handle, 1);
   xTaskCreatePinnedToCore(AnalogReadTask, "AnalogReadTask", 1000, NULL, 1, &AnalogReadHandle, 1);
@@ -24,25 +25,25 @@ void loop() {
 }
 
 void Task1(void *pvParameters) {
-  while(1) {
-    digitalWrite(LED1_PIN, HIGH);
+  while (1) {
+    analogWrite(LED1_PIN, 128); // 50%)
     vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED1));
-    digitalWrite(LED1_PIN, LOW);
+    analogWrite(LED1_PIN, 0);
     vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED1));
   }
 }
 
 void Task2(void *pvParameters) {
-  while(1) {
-    digitalWrite(LED2_PIN, HIGH);
+  while (1) {
+    analogWrite(LED2_PIN, 128);
     vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED2));
-    digitalWrite(LED2_PIN, LOW);
+    analogWrite(LED2_PIN, 0);
     vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED2));
   }
 }
 
 void AnalogReadTask(void *pvParameters) {
-  while(1) {
+  while (1) {
     int valorAnalogico = analogRead(ANALOG_PIN);
     Serial.println(valorAnalogico);
     vTaskDelay(pdMS_TO_TICKS(frequenciaLeitura));
