@@ -53,7 +53,7 @@ void readAnalog(void *parameter) {
 void setup() {
   Serial.begin(115200);
 
-  // Configuração do PWM para os LEDs
+  // Configuração do PWM para os LED
   ledcSetup(LED1_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
   ledcSetup(LED2_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
   ledcAttachPin(LED1_PIN, LED1_CHANNEL);
