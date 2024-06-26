@@ -1,59 +1,41 @@
-#include <Arduino.h>
+#include <WiFi.h>
+#include <IOXhop_FirebaseESP32.h>
+#include <ArduinoJson.h>
 
-#define LED1_PIN 14
-#define LED2_PIN 12
-#define PHOTODIODE_PIN 34
+#define WIFI_SSID "Martins WiFi6"
+#define WIFI_PASSWORD "17031998"
+#define FIREBASE_HOST "https://esp32-biomedicaleng-default-rtdb.firebaseio.com/"
+#define FIREBASE_AUTH "hYKKOkhqxLbpNhNRIWdPKdkWwdntFZyoAp20DR5y"
 
-volatile uint8_t ledState = 0;
+const int pot = 33;
+const int bufferSize = 1;
+int buffer[bufferSize];
+int bufferIndex = 0;
 
 void setup() {
-  pinMode(LED1_PIN, OUTPUT);
-  pinMode(LED2_PIN, OUTPUT);
-  
-  pinMode(PHOTODIODE_PIN, INPUT);
+  Serial.begin(115200);
+  Serial.println();
+  pinMode(pot, INPUT);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  // Criação das tarefas FreeRTOS
-  xTaskCreatePinnedToCore(
-    toggleLEDs,          
-    "Toggle LEDs",       
-    1024,          
-    NULL,              
-    1,                   
-    NULL,                
-    1                    
-  );
+  Serial.print("Conectando ao wifi");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(300);
+  }
+  Serial.println("Wifi funcionando");
 
-  xTaskCreatePinnedToCore(
-    readPhotodiode,     
-    "Read Photodiode", 
-    1024,            
-    NULL,              
-    1,                  
-    NULL,              
-    1                    
-  );
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
 }
 
 void loop() {
-}
+  int teste = analogRead(pot);
+  buffer[bufferIndex++] = teste;
 
-void toggleLEDs(void *parameter) {
-  while (true) {
-    ledState = (ledState + 1) & 0x03; 
+  if (bufferIndex >= bufferSize) {
+    bufferIndex = 0;
+    for (int i = 0; i < bufferSize; i++) {
+      Firebase.setInt("potenciometro", buffer[i]);}
 
-
-    digitalWrite(LED1_PIN, (ledState == 0) ? HIGH : LOW);
-    digitalWrite(LED2_PIN, (ledState == 2) ? HIGH : LOW);
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-}
-
-void readPhotodiode(void *parameter) {
-  while (true) {
-    int sensorValue = analogRead(PHOTODIODE_PIN);
-    Serial.println(sensorValue);
-    
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-  }
+  Serial.println(teste);
 }
