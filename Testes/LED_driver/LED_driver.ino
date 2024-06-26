@@ -1,51 +1,57 @@
-const int LED1_PIN = 2;
-const int LED2_PIN = 4;
-const int ANALOG_PIN = 36;
+#include <Arduino.h>
 
-const int INTERVALO_LED1 = 1000;
-const int INTERVALO_LED2 = 500;
+#define LED1_PIN 14
+#define LED2_PIN 12
+#define PHOTODIODE_PIN 34
 
-int frequenciaLeitura = 200;
-
-TaskHandle_t Task1Handle;
-TaskHandle_t Task2Handle;
-TaskHandle_t AnalogReadHandle;
+volatile uint8_t ledState = 0;
 
 void setup() {
   pinMode(LED1_PIN, OUTPUT);
   pinMode(LED2_PIN, OUTPUT);
-  Serial.begin(115200);
+  
+  pinMode(PHOTODIODE_PIN, INPUT);
 
-  xTaskCreatePinnedToCore(Task1, "Task1", 1000, NULL, 1, &Task1Handle, 0);
-  xTaskCreatePinnedToCore(Task2, "Task2", 1000, NULL, 1, &Task2Handle, 1);
-  xTaskCreatePinnedToCore(AnalogReadTask, "AnalogReadTask", 1000, NULL, 1, &AnalogReadHandle, 1);
+  xTaskCreatePinnedToCore(
+    toggleLEDs,         
+    "Toggle LEDs",      
+    1024,              
+    NULL,              
+    1,                  
+    NULL,              
+    1                   
+  );
+
+  xTaskCreatePinnedToCore(
+    readPhotodiode,   
+    "Read Photodiode",  
+    1024,               
+    NULL,               
+    1,                 
+    NULL,               
+    1                  
+  );
 }
 
 void loop() {
 }
 
-void Task1(void *pvParameters) {
-  while (1) {
-    analogWrite(LED1_PIN, 128); // 50%)
-    vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED1));
-    analogWrite(LED1_PIN, 0);
-    vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED1));
+void toggleLEDs(void *parameter) {
+  while (true) {
+    ledState = (ledState + 1) & 0x03; 
+
+    digitalWrite(LED1_PIN, (ledState == 0) ? HIGH : LOW);
+    digitalWrite(LED2_PIN, (ledState == 2) ? HIGH : LOW);
+
+    vTaskDelay(1200 / portTICK_PERIOD_MS);
   }
 }
 
-void Task2(void *pvParameters) {
-  while (1) {
-    analogWrite(LED2_PIN, 128);
-    vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED2));
-    analogWrite(LED2_PIN, 0);
-    vTaskDelay(pdMS_TO_TICKS(INTERVALO_LED2));
-  }
-}
-
-void AnalogReadTask(void *pvParameters) {
-  while (1) {
-    int valorAnalogico = analogRead(ANALOG_PIN);
-    Serial.println(valorAnalogico);
-    vTaskDelay(pdMS_TO_TICKS(frequenciaLeitura));
-  }
+void readPhotodiode(void *parameter) {
+  while (true) {
+    int sensorValue = analogRead(PHOTODIODE_PIN);
+    Serial.println(sensorValue);
+    
+    vTaskDelay(400 / portTICK_PERIOD_MS);
+  }
 }
