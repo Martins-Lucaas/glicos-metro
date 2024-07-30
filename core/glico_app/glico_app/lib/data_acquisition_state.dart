@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class DataAcquisitionState with ChangeNotifier {
   final String esp32Ip;
@@ -73,7 +74,6 @@ class DataAcquisitionState with ChangeNotifier {
             dataPoints.removeAt(0);
           }
           dataPoints.add(currentValue);
-          debugPrint("Fetched value: $currentValue");
           notifyListeners();
         } else {
           debugPrint("Failed to fetch data. Status code: ${response.statusCode}");

@@ -15,14 +15,15 @@ int bufferIndex = 0;
 bool updatingData = false;
 unsigned long acquisitionRate = 500;
 const int pinvADC = 33;
+const int pinLed = 32;
 
 TaskHandle_t vADCTaskHandle = NULL;
 SemaphoreHandle_t bufferMutex;
 
 // Função para ler o valor do sinal vADC
 float readvADCValue() {
-  digitalWrite(26, !digitalRead(26));
   int valorADC = analogRead(pinvADC);
+  digitalWrite(pinLed,!digitalRead(pinLed));
   float tensao = ((valorADC * 3.3) / 4095); // Convertendo para volts
   return tensao;
 }
@@ -45,7 +46,7 @@ void vADCTask(void *pvParameters) {
       }
       vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(acquisitionRate));
     } else {
-      vTaskDelay(100 / portTICK_PERIOD_MS);  // Aguarda 100ms antes de verificar novamente
+      vTaskDelay(100 / portTICK_PERIOD_MS);
     }
   }
 }
@@ -70,7 +71,7 @@ void clearBuffer() {
 }
 
 void setup() {
-  pinMode(26, OUTPUT);
+  pinMode(pinLed,OUTPUT);
   pinMode(pinvADC, INPUT);
   Serial.begin(115200);
 
