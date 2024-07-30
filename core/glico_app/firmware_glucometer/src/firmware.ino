@@ -1,100 +1,136 @@
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
-#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
 
-BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic = NULL;
-bool deviceConnected = false;
-bool oldDeviceConnected = false;
-uint32_t value = 0;
-uint32_t buttonPressCount = 0;
+// Definição das credenciais de WiFi
+const char *ssid = "Martins Wifi6";
+const char *password = "17031998";
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+WebServer server(80);
+const int bufferSize = 100;  // Número máximo de pontos no gráfico
+float vADCBuffer[bufferSize];
+int bufferIndex = 0;
+bool updatingData = false;
+unsigned long acquisitionRate = 500;
+const int pinvADC = 33;
 
+TaskHandle_t vADCTaskHandle = NULL;
+SemaphoreHandle_t bufferMutex;
 
+// Função para ler o valor do sinal vADC
+float readvADCValue() {
+  digitalWrite(26, !digitalRead(26));
+  int valorADC = analogRead(pinvADC);
+  float tensao = ((valorADC * 3.3) / 4095); // Convertendo para volts
+  return tensao;
+}
 
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-      deviceConnected = true;
-      BLEDevice::startAdvertising();
-    };
+void sendCORSHeaders() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+}
 
-    void onDisconnect(BLEServer* pServer) {
-      deviceConnected = false;
-    }
-};
-
-class MyCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string rxValue = pCharacteristic->getValue();
-      if (rxValue.length() > 0) {
-        buttonPressCount++;
-        Serial.print("Button pressed ");
-        Serial.print(buttonPressCount);
-        Serial.println(" times");
+void vADCTask(void *pvParameters) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  while (1) {
+    if (updatingData) {
+      float vADCvalue = readvADCValue();
+      if (xSemaphoreTake(bufferMutex, (TickType_t)10) == pdTRUE) {
+        vADCBuffer[bufferIndex] = vADCvalue;
+        bufferIndex = (bufferIndex + 1) % bufferSize;
+        xSemaphoreGive(bufferMutex);
       }
+      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(acquisitionRate));
+    } else {
+      vTaskDelay(100 / portTICK_PERIOD_MS);  // Aguarda 100ms antes de verificar novamente
     }
-};
+  }
+}
+
+void startAcquisition() {
+  updatingData = true;
+  Serial.println("Aquisição de dados iniciada.");
+}
+
+void stopAcquisition() {
+  updatingData = false;
+  Serial.println("Aquisição de dados parada.");
+}
+
+void clearBuffer() {
+  if (xSemaphoreTake(bufferMutex, (TickType_t)10) == pdTRUE) {
+    memset(vADCBuffer, 0, sizeof(vADCBuffer));  // Limpa o buffer
+    bufferIndex = 0;
+    xSemaphoreGive(bufferMutex);
+    Serial.println("Buffer limpo.");
+  }
+}
 
 void setup() {
+  pinMode(26, OUTPUT);
+  pinMode(pinvADC, INPUT);
   Serial.begin(115200);
 
-  // Create the BLE Device
-  BLEDevice::init("ESP32_Glucometer");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Conectando ao WiFi...");
+  }
 
-  // Create the BLE Server
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks());
+  Serial.println("Conectado ao WiFi");
+  Serial.print("Endereço IP: ");
+  Serial.println(WiFi.localIP());
 
-  // Create the BLE Service
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  server.on("/", HTTP_OPTIONS, []() {
+    sendCORSHeaders();
+    server.send(200);
+  });
 
-  // Create a BLE Characteristic
-  pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
-                      BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_WRITE  |
-                      BLECharacteristic::PROPERTY_NOTIFY |
-                      BLECharacteristic::PROPERTY_INDICATE
-                    );
+  server.on("/vADCvalue", HTTP_GET, []() {
+    sendCORSHeaders();
+    float value = readvADCValue();
+    server.send(200, "text/plain", String(value, 4)); // Precisão de 4 casas decimais
+  });
 
-  pCharacteristic->setCallbacks(new MyCallbacks());
+  server.on("/updateAcquisitionRate", HTTP_GET, []() {
+    sendCORSHeaders();
+    if (server.hasArg("rate")) {
+      acquisitionRate = server.arg("rate").toInt();
+      clearBuffer();  // Limpa o buffer quando a taxa de aquisição é alterada
+      Serial.print("Taxa de aquisição atualizada para: ");
+      Serial.println(acquisitionRate);
+    }
+    server.send(200, "text/plain", "Taxa de aquisição atualizada e buffer limpo");
+  });
 
-  // Create a BLE Descriptor
-  pCharacteristic->addDescriptor(new BLE2902());
+  server.on("/startAcquisition", HTTP_GET, []() {
+    sendCORSHeaders();
+    startAcquisition();
+    server.send(200, "text/plain", "Aquisição iniciada");
+  });
 
-  // Start the service
-  pService->start();
+  server.on("/stopAcquisition", HTTP_GET, []() {
+    sendCORSHeaders();
+    stopAcquisition();
+    server.send(200, "text/plain", "Aquisição parada");
+  });
 
-  // Start advertising
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(false);
-  pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
-  BLEDevice::startAdvertising();
-  Serial.println("Waiting for a client connection to notify...");
+  server.on("/clearBuffer", HTTP_GET, []() {
+    sendCORSHeaders();
+    clearBuffer();
+    server.send(200, "text/plain", "Buffer limpo");
+  });
+
+  server.begin();
+  Serial.println("Servidor iniciado");
+
+  bufferMutex = xSemaphoreCreateMutex();
+  xTaskCreate(vADCTask, "vADCTask", 2048, NULL, 1, &vADCTaskHandle);
 }
 
 void loop() {
-    // notify changed value
-    if (deviceConnected) {
-        pCharacteristic->setValue((uint8_t*)&value, 4);
-        pCharacteristic->notify();
-        value++;
-        delay(10); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
-    }
-    // disconnecting
-    if (!deviceConnected && oldDeviceConnected) {
-        delay(500); // give the bluetooth stack the chance to get things ready
-        pServer->startAdvertising(); // restart advertising
-        Serial.println("start advertising");
-        oldDeviceConnected = deviceConnected;
-    }
-    // connecting
-    if (deviceConnected && !oldDeviceConnected) {
-        oldDeviceConnected = deviceConnected;
-    }
+  server.handleClient();
 }
