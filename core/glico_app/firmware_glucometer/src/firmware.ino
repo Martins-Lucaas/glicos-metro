@@ -2,7 +2,6 @@
 #include <WebServer.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
 
 // Definição das credenciais de WiFi
 const char *ssid = "Martins Wifi6";
@@ -13,17 +12,15 @@ const int bufferSize = 100;  // Número máximo de pontos no gráfico
 float vADCBuffer[bufferSize];
 int bufferIndex = 0;
 bool updatingData = false;
-unsigned long acquisitionRate = 500;
+const unsigned long acquisitionRate = 20;  // Taxa de aquisição fixa em 20ms
 const int pinvADC = 33;
-const int pinLed = 32;
 
 TaskHandle_t vADCTaskHandle = NULL;
-SemaphoreHandle_t bufferMutex;
 
 // Função para ler o valor do sinal vADC
 float readvADCValue() {
+  digitalWrite(26, !digitalRead(26));
   int valorADC = analogRead(pinvADC);
-  digitalWrite(pinLed,!digitalRead(pinLed));
   float tensao = ((valorADC * 3.3) / 4095); // Convertendo para volts
   return tensao;
 }
@@ -35,18 +32,14 @@ void sendCORSHeaders() {
 }
 
 void vADCTask(void *pvParameters) {
-  TickType_t xLastWakeTime = xTaskGetTickCount();
   while (1) {
     if (updatingData) {
       float vADCvalue = readvADCValue();
-      if (xSemaphoreTake(bufferMutex, (TickType_t)10) == pdTRUE) {
-        vADCBuffer[bufferIndex] = vADCvalue;
-        bufferIndex = (bufferIndex + 1) % bufferSize;
-        xSemaphoreGive(bufferMutex);
-      }
-      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(acquisitionRate));
+      vADCBuffer[bufferIndex] = vADCvalue;
+      bufferIndex = (bufferIndex + 1) % bufferSize;
+      vTaskDelay(pdMS_TO_TICKS(acquisitionRate));
     } else {
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+      vTaskDelay(100 / portTICK_PERIOD_MS);  // Aguarda 100ms antes de verificar novamente
     }
   }
 }
@@ -62,16 +55,13 @@ void stopAcquisition() {
 }
 
 void clearBuffer() {
-  if (xSemaphoreTake(bufferMutex, (TickType_t)10) == pdTRUE) {
-    memset(vADCBuffer, 0, sizeof(vADCBuffer));  // Limpa o buffer
-    bufferIndex = 0;
-    xSemaphoreGive(bufferMutex);
-    Serial.println("Buffer limpo.");
-  }
+  memset(vADCBuffer, 0, sizeof(vADCBuffer));  // Limpa o buffer
+  bufferIndex = 0;
+  Serial.println("Buffer limpo.");
 }
 
 void setup() {
-  pinMode(pinLed,OUTPUT);
+  pinMode(26, OUTPUT);
   pinMode(pinvADC, INPUT);
   Serial.begin(115200);
 
@@ -96,17 +86,6 @@ void setup() {
     server.send(200, "text/plain", String(value, 4)); // Precisão de 4 casas decimais
   });
 
-  server.on("/updateAcquisitionRate", HTTP_GET, []() {
-    sendCORSHeaders();
-    if (server.hasArg("rate")) {
-      acquisitionRate = server.arg("rate").toInt();
-      clearBuffer();  // Limpa o buffer quando a taxa de aquisição é alterada
-      Serial.print("Taxa de aquisição atualizada para: ");
-      Serial.println(acquisitionRate);
-    }
-    server.send(200, "text/plain", "Taxa de aquisição atualizada e buffer limpo");
-  });
-
   server.on("/startAcquisition", HTTP_GET, []() {
     sendCORSHeaders();
     startAcquisition();
@@ -128,7 +107,6 @@ void setup() {
   server.begin();
   Serial.println("Servidor iniciado");
 
-  bufferMutex = xSemaphoreCreateMutex();
   xTaskCreate(vADCTask, "vADCTask", 2048, NULL, 1, &vADCTaskHandle);
 }
 

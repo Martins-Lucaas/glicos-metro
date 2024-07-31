@@ -36,13 +36,15 @@ dependencies:
   fl_chart: ^0.68.0
   flutter_spinkit: ^5.1.0
   google_fonts: ^6.2.1
-
-
-#ALTEREI AQUI PARA PODER ACESSAR O SERVIDOR DO ESP
+  charts_flutter: ^0.12.0 # Para gráficos adicionais, se necessário
+  flutter_hooks: ^0.18.0  # Para reatividade e hooks
+  flutter_bloc: ^8.0.0    # Para gerenciamento de estado usando bloc
+  flutter_form_builder: ^7.3.0 # Para formulários avançados
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -63,7 +65,6 @@ flutter:
     - assets/images/45 Anos UFU-19.png
     - assets/images/lucas.png
     - assets/images/victoria.png
-
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

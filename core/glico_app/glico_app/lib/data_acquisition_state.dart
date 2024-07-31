@@ -1,13 +1,21 @@
+// data_acquisition_state.dart
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+
+enum MathFunction { sum, subtract, multiply, divide, fft }
 
 class DataAcquisitionState with ChangeNotifier {
   final String esp32Ip;
   List<double> dataPoints = [];
   double currentValue = 0.0;
-  int acquisitionRate = 500;
+  final int acquisitionRate = 20;  // Taxa de aquisição fixa em 20ms
   bool isAcquiring = false;
+  Timer? _timer;
+
+  List<double> fftData = [];
+  double frequency = 0.0;
 
   DataAcquisitionState(this.esp32Ip);
 
@@ -20,7 +28,7 @@ class DataAcquisitionState with ChangeNotifier {
         final response = await http.get(Uri.parse('http://$esp32Ip/startAcquisition'));
         if (response.statusCode == 200) {
           debugPrint("Acquisition started successfully.");
-          _fetchData();
+          _scheduleNextFetch();
         } else {
           debugPrint("Failed to start acquisition: ${response.statusCode}");
         }
@@ -33,6 +41,7 @@ class DataAcquisitionState with ChangeNotifier {
   void stopAcquisition() async {
     if (isAcquiring) {
       isAcquiring = false;
+      _timer?.cancel();
       debugPrint("Stopping data acquisition...");
       try {
         final response = await http.get(Uri.parse('http://$esp32Ip/stopAcquisition'));
@@ -48,40 +57,120 @@ class DataAcquisitionState with ChangeNotifier {
     }
   }
 
-  void updateAcquisitionRate(int rate) async {
-    acquisitionRate = rate;
-    debugPrint("Updating acquisition rate to $rate ms");
+  void toggleAcquisition() {
+    if (isAcquiring) {
+      stopAcquisition();
+    } else {
+      startAcquisition();
+    }
+  }
+
+  void _scheduleNextFetch() {
+    if (isAcquiring) {
+      _timer = Timer(Duration(milliseconds: acquisitionRate), () async {
+        await _fetchData();
+        _scheduleNextFetch();
+      });
+    }
+  }
+
+  Future<void> _fetchData() async {
     try {
-      final response = await http.get(Uri.parse('http://$esp32Ip/updateAcquisitionRate?rate=$rate'));
+      final response = await http.get(Uri.parse('http://$esp32Ip/vADCvalue'));
       if (response.statusCode == 200) {
-        debugPrint("Acquisition rate updated successfully.");
+        currentValue = double.parse(response.body);
+        if (dataPoints.length >= 100) {
+          dataPoints.removeAt(0);
+        }
+        dataPoints.add(currentValue);
+        notifyListeners();
       } else {
-        debugPrint("Failed to update acquisition rate: ${response.statusCode}");
+        debugPrint("Failed to fetch data. Status code: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("Error updating acquisition rate: $e");
+      debugPrint("Error fetching data: $e");
+    }
+  }
+
+  void measureFrequencyPeriod() {
+    if (dataPoints.length < 2) return;
+
+    // Detect zero crossings to estimate the period
+    List<int> zeroCrossings = [];
+    for (int i = 1; i < dataPoints.length; i++) {
+      if (dataPoints[i - 1] < 0 && dataPoints[i] >= 0) {
+        zeroCrossings.add(i);
+      }
+    }
+
+    if (zeroCrossings.length < 2) return;
+
+    // Calculate the average period
+    double totalPeriod = 0.0;
+    for (int i = 1; i < zeroCrossings.length; i++) {
+      totalPeriod += (zeroCrossings[i] - zeroCrossings[i - 1]);
+    }
+    double averagePeriod = totalPeriod / (zeroCrossings.length - 1);
+
+    // Convert to time period (in milliseconds)
+    double periodMs = averagePeriod * acquisitionRate;
+    double frequencyHz = 1000 / periodMs;
+
+    debugPrint("Average Period: $periodMs ms");
+    debugPrint("Frequency: $frequencyHz Hz");
+
+    frequency = frequencyHz;
+    notifyListeners();
+  }
+
+  void applyMathFunction(MathFunction function) {
+    switch (function) {
+      case MathFunction.fft:
+        _performFFT();
+        break;
+      // Outros casos não implementados para este exemplo
+      default:
+        break;
     }
     notifyListeners();
   }
 
-  void _fetchData() async {
-    while (isAcquiring) {
-      try {
-        final response = await http.get(Uri.parse('http://$esp32Ip/vADCvalue'));
-        if (response.statusCode == 200) {
-          currentValue = double.parse(response.body);
-          if (dataPoints.length >= 100) {
-            dataPoints.removeAt(0);
-          }
-          dataPoints.add(currentValue);
-          notifyListeners();
-        } else {
-          debugPrint("Failed to fetch data. Status code: ${response.statusCode}");
-        }
-      } catch (e) {
-        debugPrint("Error fetching data: $e");
-      }
-      await Future.delayed(Duration(milliseconds: acquisitionRate));
-    }
+  void _performFFT() {
+    int n = dataPoints.length;
+    List<Complex> input = List.generate(n, (i) => Complex(dataPoints[i], 0));
+    List<Complex> output = fft(input);
+    fftData = output.map((c) => c.magnitude).toList();
   }
+
+  // FFT implementation
+  List<Complex> fft(List<Complex> input) {
+    int n = input.length;
+    if (n <= 1) return input;
+
+    List<Complex> even = fft(List.generate(n ~/ 2, (i) => input[i * 2]));
+    List<Complex> odd = fft(List.generate(n ~/ 2, (i) => input[i * 2 + 1]));
+
+    List<Complex> output = List.filled(n, Complex(0, 0));
+    for (int k = 0; k < n ~/ 2; k++) {
+      Complex t = odd[k] * Complex.polar(1, -2 * pi * k / n);
+      output[k] = even[k] + t;
+      output[k + n ~/ 2] = even[k] - t;
+    }
+    return output;
+  }
+}
+
+class Complex {
+  final double real;
+  final double imaginary;
+
+  Complex(this.real, this.imaginary);
+
+  Complex operator +(Complex other) => Complex(real + other.real, imaginary + other.imaginary);
+  Complex operator -(Complex other) => Complex(real - other.real, imaginary - other.imaginary);
+  Complex operator *(Complex other) => Complex(real * other.real - imaginary * other.imaginary, real * other.imaginary + imaginary * other.real);
+
+  double get magnitude => sqrt(real * real + imaginary * imaginary);
+
+  factory Complex.polar(double r, double theta) => Complex(r * cos(theta), r * sin(theta));
 }

@@ -1,3 +1,4 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data_acquisition_state.dart';
@@ -16,13 +17,13 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => DataAcquisitionState('192.168.3.8'), // Substitua pelo IP do seu ESP32
       child: MaterialApp(
-        title: 'Sistemas de aquisição de dados',
+        title: 'GlicoApp',
         theme: ThemeData(
-          brightness: Brightness.light, // Mudar para tema claro
+          brightness: Brightness.dark, // Mudar para tema escuro
           primaryColor: Colors.blue,
           textTheme: Theme.of(context).textTheme.apply(
-                bodyColor: Colors.black,
-                displayColor: Colors.black,
+                bodyColor: Colors.white,
+                displayColor: Colors.white,
               ),
         ),
         initialRoute: '/', // Define a rota inicial para a página de login
@@ -52,7 +53,7 @@ class MyHomePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text('Sistemas de aquisição de dados')),
+        title: const Text('Glicose mg/dL'),
         leading: PopupMenuButton<String>(
           icon: CircleAvatar(
             backgroundImage: AssetImage(userImage),
@@ -65,7 +66,7 @@ class MyHomePage extends StatelessWidget {
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
             const PopupMenuItem<String>(
               value: 'logout',
-              child: Text('Sair'),
+              child: Text('Logout'),
             ),
           ],
         ),
@@ -77,66 +78,20 @@ class MyHomePage extends StatelessWidget {
             children: <Widget>[
               const ChartWidget(),
               const SizedBox(height: 20),
-              Slider(
-                value: state.acquisitionRate.toDouble(),
-                min: 1,
-                max: 2000,
-                divisions: 2000,
-                label: state.acquisitionRate.toString(),
-                onChanged: (value) {
-                  state.updateAcquisitionRate(value.toInt());
-                },
-              ),
-              const SizedBox(height: 20),
-              // Container para mostrar a taxa de aquisição
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10.0),
-                  border: Border.all(color: Colors.black),
-                ),
-                child: Text(
-                  'Taxa de Aquisição: ${state.acquisitionRate} ms',
-                  style: const TextStyle(fontSize: 24, color: Colors.black),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      debugPrint("Start button pressed");
-                      state.startAcquisition();
-                    },
-                    child: const Text('Iniciar'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      debugPrint("Stop button pressed");
-                      state.stopAcquisition();
-                    },
-                    child: const Text('Parar'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
               if (state.isAcquiring) ...[
-                const Text('Adquirindo Dados...', style: TextStyle(fontSize: 16)),
+                const Text('Acquiring Data...', style: TextStyle(fontSize: 16)),
               ],
               const SizedBox(height: 20),
-              // Container para mostrar o valor atual da aquisição
               Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.black,
                   borderRadius: BorderRadius.circular(10.0),
-                  border: Border.all(color: Colors.black),
+                  border: Border.all(color: Colors.blue),
                 ),
                 child: Text(
-                  'Valor Atual: ${state.currentValue.toStringAsFixed(4)} V',
-                  style: const TextStyle(fontSize: 24, color: Colors.black),
+                  'Current Value: ${state.currentValue.toStringAsFixed(4)} V',
+                  style: const TextStyle(fontSize: 24, color: Colors.white),
                 ),
               ),
             ],
