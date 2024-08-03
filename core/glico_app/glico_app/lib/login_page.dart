@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -24,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacementNamed(context, '/home', arguments: username);
     } else {
       setState(() {
-        _errorMessage = 'Invalid username or password';
+        _errorMessage = 'Usuário ou senha inválidos';
       });
     }
   }
@@ -47,21 +47,21 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16.0),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: const InputDecoration(labelText: 'Username'),
+                  decoration: const InputDecoration(labelText: 'Usuário'),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your username';
+                      return 'Insira seu usuário';
                     }
                     return null;
                   },
                 ),
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: const InputDecoration(labelText: 'Senha'),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return 'Insira sua senha';
                     }
                     return null;
                   },

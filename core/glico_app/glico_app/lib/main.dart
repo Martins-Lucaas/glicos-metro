@@ -1,4 +1,3 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data_acquisition_state.dart';
@@ -51,6 +50,8 @@ class MyHomePage extends StatelessWidget {
       userImage = 'assets/images/victoria.png';
     }
 
+    final TextEditingController blinkRateController = TextEditingController();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Glicose mg/dL'),
@@ -93,6 +94,32 @@ class MyHomePage extends StatelessWidget {
                   'Current Value: ${state.currentValue.toStringAsFixed(4)} V',
                   style: const TextStyle(fontSize: 24, color: Colors.white),
                 ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: blinkRateController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Blink Rate (ms)',
+                    hintText: 'insira a taxa em ms',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final int? blinkRate = int.tryParse(blinkRateController.text);
+                  if (blinkRate != null && blinkRate > 0) {
+                    state.setBlinkRate(blinkRate);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Insira uma taxa válida')),
+                    );
+                  }
+                },
+                child: const Text('Set Blink Rate'),
               ),
             ],
           ),

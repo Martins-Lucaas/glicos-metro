@@ -20,7 +20,7 @@ class ChartWidget extends StatelessWidget {
               minY: -5,
               maxY: 5,
               minX: 0,
-              maxX: 100,
+              maxX: 100, //Tamanho gráfico eixo X
               titlesData: FlTitlesData(
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
@@ -98,7 +98,7 @@ class ChartWidget extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                // Placeholder for Canal 2 functionality
+                // Editar aqui a funcionalidade do canal 2
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               child: const Text('Canal 2'),

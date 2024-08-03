@@ -1,4 +1,3 @@
-// data_acquisition_state.dart
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -18,6 +17,8 @@ class DataAcquisitionState with ChangeNotifier {
   double frequency = 0.0;
 
   DataAcquisitionState(this.esp32Ip);
+
+  get frequencies => null;
 
   void startAcquisition() async {
     if (!isAcquiring) {
@@ -79,23 +80,23 @@ class DataAcquisitionState with ChangeNotifier {
       final response = await http.get(Uri.parse('http://$esp32Ip/vADCvalue'));
       if (response.statusCode == 200) {
         currentValue = double.parse(response.body);
-        if (dataPoints.length >= 100) {
+        if (dataPoints.length >= 100) {//numero de dados ao mesmo tempo
           dataPoints.removeAt(0);
         }
         dataPoints.add(currentValue);
         notifyListeners();
       } else {
-        debugPrint("Failed to fetch data. Status code: ${response.statusCode}");
+        debugPrint("Falha ao adquirir os dados. Status code: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("Error fetching data: $e");
+      debugPrint("Erro: $e");
     }
   }
 
   void measureFrequencyPeriod() {
     if (dataPoints.length < 2) return;
 
-    // Detect zero crossings to estimate the period
+    // Detect zero crossings para estimar o periodo
     List<int> zeroCrossings = [];
     for (int i = 1; i < dataPoints.length; i++) {
       if (dataPoints[i - 1] < 0 && dataPoints[i] >= 0) {
@@ -105,14 +106,13 @@ class DataAcquisitionState with ChangeNotifier {
 
     if (zeroCrossings.length < 2) return;
 
-    // Calculate the average period
+    // Calcula o periodo estimado
     double totalPeriod = 0.0;
     for (int i = 1; i < zeroCrossings.length; i++) {
       totalPeriod += (zeroCrossings[i] - zeroCrossings[i - 1]);
     }
     double averagePeriod = totalPeriod / (zeroCrossings.length - 1);
 
-    // Convert to time period (in milliseconds)
     double periodMs = averagePeriod * acquisitionRate;
     double frequencyHz = 1000 / periodMs;
 
@@ -142,7 +142,7 @@ class DataAcquisitionState with ChangeNotifier {
     fftData = output.map((c) => c.magnitude).toList();
   }
 
-  // FFT implementation
+  // FFT
   List<Complex> fft(List<Complex> input) {
     int n = input.length;
     if (n <= 1) return input;
@@ -157,6 +157,20 @@ class DataAcquisitionState with ChangeNotifier {
       output[k + n ~/ 2] = even[k] - t;
     }
     return output;
+  }
+
+  // Controla blink rate
+  void setBlinkRate(int rate) async {
+    try {
+      final response = await http.get(Uri.parse('http://$esp32Ip/setBlinkRate?rate=$rate'));
+      if (response.statusCode == 200) {
+        debugPrint("Taxa alterada para $rate ms.");
+      } else {
+        debugPrint("Falha ao alterar a taxa: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Erro: $e");
+    }
   }
 }
 

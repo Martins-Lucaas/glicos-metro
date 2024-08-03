@@ -14,8 +14,12 @@ int bufferIndex = 0;
 bool updatingData = false;
 const unsigned long acquisitionRate = 20;  // Taxa de aquisição fixa em 20ms
 const int pinvADC = 33;
+const int pinLED = 25;
+
+int blinkRate = 10;  // Taxa inicial de piscar em milissegundos
 
 TaskHandle_t vADCTaskHandle = NULL;
+TaskHandle_t blinkTaskHandle = NULL;
 
 // Função para ler o valor do sinal vADC
 float readvADCValue() {
@@ -44,6 +48,15 @@ void vADCTask(void *pvParameters) {
   }
 }
 
+void blinkTask(void *pvParameters) {
+  while (1) {
+    digitalWrite(pinLED, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(blinkRate));
+    digitalWrite(pinLED, LOW);
+    vTaskDelay(pdMS_TO_TICKS(blinkRate));
+  }
+}
+
 void startAcquisition() {
   updatingData = true;
   Serial.println("Aquisição de dados iniciada.");
@@ -60,9 +73,27 @@ void clearBuffer() {
   Serial.println("Buffer limpo.");
 }
 
+void handleSetBlinkRate() {
+  if (server.hasArg("rate")) {
+    blinkRate = server.arg("rate").toInt();
+    if (blinkRate <= 0) {
+      blinkRate = 10;  // Valor padrão caso a taxa seja inválida
+    }
+    Serial.print("Taxa de piscar do LED definida para: ");
+    Serial.print(blinkRate);
+    Serial.println(" ms");
+    sendCORSHeaders();
+    server.send(200, "text/plain", "Taxa de piscar do LED definida");
+  } else {
+    sendCORSHeaders();
+    server.send(400, "text/plain", "Parâmetro 'rate' não encontrado");
+  }
+}
+
 void setup() {
   pinMode(26, OUTPUT);
   pinMode(pinvADC, INPUT);
+  pinMode(pinLED, OUTPUT);
   Serial.begin(115200);
 
   WiFi.begin(ssid, password);
@@ -104,10 +135,13 @@ void setup() {
     server.send(200, "text/plain", "Buffer limpo");
   });
 
+  server.on("/setBlinkRate", HTTP_GET, handleSetBlinkRate);
+
   server.begin();
   Serial.println("Servidor iniciado");
 
   xTaskCreate(vADCTask, "vADCTask", 2048, NULL, 1, &vADCTaskHandle);
+  xTaskCreate(blinkTask, "blinkTask", 1024, NULL, 1, &blinkTaskHandle);
 }
 
 void loop() {
