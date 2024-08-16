@@ -20,7 +20,7 @@ class ChartWidget extends StatelessWidget {
               minY: -5,
               maxY: 5,
               minX: 0,
-              maxX: 100, //Tamanho gráfico eixo X
+              maxX: state.timeDivisions.toDouble(), // Tamanho gráfico eixo X ajustável
               titlesData: FlTitlesData(
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
@@ -84,6 +84,21 @@ class ChartWidget extends StatelessWidget {
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Escala de Tempo: ${state.timeDivisions} ms/div',
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+        ),
+        Slider(
+          value: state.timeDivisions.toDouble(),
+          min: 10,
+          max: 100,
+          divisions: 9,
+          label: '${state.timeDivisions} ms/div',
+          onChanged: (double value) {
+            state.setTimeDivisions(value.toInt());
+          },
         ),
         const SizedBox(height: 10),
         Row(

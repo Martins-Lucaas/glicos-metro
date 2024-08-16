@@ -9,12 +9,14 @@ class DataAcquisitionState with ChangeNotifier {
   final String esp32Ip;
   List<double> dataPoints = [];
   double currentValue = 0.0;
-  final int acquisitionRate = 20;  // Taxa de aquisição fixa em 20ms
+  int acquisitionRate = 50;  // Taxa de aquisição ajustada para 50ms
   bool isAcquiring = false;
   Timer? _timer;
 
   List<double> fftData = [];
   double frequency = 0.0;
+  
+  int timeDivisions = 100; // Escala de tempo padrão em ms/div
 
   DataAcquisitionState(this.esp32Ip);
 
@@ -80,8 +82,8 @@ class DataAcquisitionState with ChangeNotifier {
       final response = await http.get(Uri.parse('http://$esp32Ip/vADCvalue'));
       if (response.statusCode == 200) {
         currentValue = double.parse(response.body);
-        if (dataPoints.length >= 100) {//numero de dados ao mesmo tempo
-          dataPoints.removeAt(0);
+        if (dataPoints.length >= timeDivisions) { 
+          dataPoints.removeAt(0);  // Limite de pontos baseado na escala de tempo
         }
         dataPoints.add(currentValue);
         notifyListeners();
@@ -96,7 +98,7 @@ class DataAcquisitionState with ChangeNotifier {
   void measureFrequencyPeriod() {
     if (dataPoints.length < 2) return;
 
-    // Detect zero crossings para estimar o periodo
+    // Detect zero crossings para estimar o período
     List<int> zeroCrossings = [];
     for (int i = 1; i < dataPoints.length; i++) {
       if (dataPoints[i - 1] < 0 && dataPoints[i] >= 0) {
@@ -106,7 +108,7 @@ class DataAcquisitionState with ChangeNotifier {
 
     if (zeroCrossings.length < 2) return;
 
-    // Calcula o periodo estimado
+    // Calcula o período estimado
     double totalPeriod = 0.0;
     for (int i = 1; i < zeroCrossings.length; i++) {
       totalPeriod += (zeroCrossings[i] - zeroCrossings[i - 1]);
@@ -172,8 +174,15 @@ class DataAcquisitionState with ChangeNotifier {
       debugPrint("Erro: $e");
     }
   }
+
+  // Define a escala de tempo
+  void setTimeDivisions(int divisions) {
+    timeDivisions = divisions;
+    notifyListeners();
+  }
 }
 
+// Classe para operações de números complexos
 class Complex {
   final double real;
   final double imaginary;

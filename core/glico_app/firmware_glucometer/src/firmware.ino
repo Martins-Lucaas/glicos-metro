@@ -1,29 +1,34 @@
+#include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#define LED_V 32
+#define LED_IV 33
+#define pinvADC 34
+
+volatile uint8_t ledState = 0;
 
 // Definição das credenciais de WiFi
 const char *ssid = "Martins Wifi6";
 const char *password = "17031998";
 
 WebServer server(80);
-const int bufferSize = 100;  // Número máximo de pontos no gráfico
+const int bufferSize = 1000;  // Número máximo de pontos no gráfico
 float vADCBuffer[bufferSize];
 int bufferIndex = 0;
 bool updatingData = false;
-const unsigned long acquisitionRate = 20;  // Taxa de aquisição fixa em 20ms
-const int pinvADC = 33;
-const int pinLED = 25;
+int acquisitionRate = 10;  // Taxa de aquisição inicial em milissegundos
 
 int blinkRate = 10;  // Taxa inicial de piscar em milissegundos
 
 TaskHandle_t vADCTaskHandle = NULL;
 TaskHandle_t blinkTaskHandle = NULL;
+SemaphoreHandle_t bufferMutex;
 
 // Função para ler o valor do sinal vADC
 float readvADCValue() {
-  digitalWrite(26, !digitalRead(26));
   int valorADC = analogRead(pinvADC);
   float tensao = ((valorADC * 3.3) / 4095); // Convertendo para volts
   return tensao;
@@ -39,8 +44,10 @@ void vADCTask(void *pvParameters) {
   while (1) {
     if (updatingData) {
       float vADCvalue = readvADCValue();
+      xSemaphoreTake(bufferMutex, portMAX_DELAY); // Proteção do buffer
       vADCBuffer[bufferIndex] = vADCvalue;
       bufferIndex = (bufferIndex + 1) % bufferSize;
+      xSemaphoreGive(bufferMutex);
       vTaskDelay(pdMS_TO_TICKS(acquisitionRate));
     } else {
       vTaskDelay(100 / portTICK_PERIOD_MS);  // Aguarda 100ms antes de verificar novamente
@@ -49,11 +56,19 @@ void vADCTask(void *pvParameters) {
 }
 
 void blinkTask(void *pvParameters) {
-  while (1) {
-    digitalWrite(pinLED, HIGH);
-    vTaskDelay(pdMS_TO_TICKS(blinkRate));
-    digitalWrite(pinLED, LOW);
-    vTaskDelay(pdMS_TO_TICKS(blinkRate));
+  while (true) {
+    ledState = (ledState + 1) % 3;
+    if (ledState == 0) {
+      digitalWrite(LED_V, HIGH);
+      digitalWrite(LED_IV, LOW);
+    } else if (ledState == 1) {
+      digitalWrite(LED_V, LOW);
+      digitalWrite(LED_IV, HIGH);
+    } else {
+      digitalWrite(LED_V, LOW);
+      digitalWrite(LED_IV, LOW);
+    }
+    vTaskDelay(blinkRate / portTICK_PERIOD_MS);
   }
 }
 
@@ -68,9 +83,31 @@ void stopAcquisition() {
 }
 
 void clearBuffer() {
+  xSemaphoreTake(bufferMutex, portMAX_DELAY); // Proteção do buffer
   memset(vADCBuffer, 0, sizeof(vADCBuffer));  // Limpa o buffer
   bufferIndex = 0;
+  xSemaphoreGive(bufferMutex);
   Serial.println("Buffer limpo.");
+}
+
+void handleSetAcquisitionRate() {
+  if (server.hasArg("rate")) {
+    int newRate = server.arg("rate").toInt();
+    if (newRate > 0) {
+      acquisitionRate = newRate;
+      Serial.print("Taxa de aquisição ajustada para: ");
+      Serial.print(acquisitionRate);
+      Serial.println(" ms");
+      sendCORSHeaders();
+      server.send(200, "text/plain", "Taxa de aquisição ajustada");
+    } else {
+      sendCORSHeaders();
+      server.send(400, "text/plain", "Taxa inválida");
+    }
+  } else {
+    sendCORSHeaders();
+    server.send(400, "text/plain", "Parâmetro 'rate' não encontrado");
+  }
 }
 
 void handleSetBlinkRate() {
@@ -91,20 +128,36 @@ void handleSetBlinkRate() {
 }
 
 void setup() {
-  pinMode(26, OUTPUT);
   pinMode(pinvADC, INPUT);
-  pinMode(pinLED, OUTPUT);
+  pinMode(LED_V, OUTPUT);
+  pinMode(LED_IV, OUTPUT);
   Serial.begin(115200);
 
+  // Inicializa o mutex para proteger o buffer
+  bufferMutex = xSemaphoreCreateMutex();
+
+  // Inicializa a conexão WiFi
+  Serial.println("Inicializando WiFi...");
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+
+  // Verifica o status da conexão WiFi
+  int retryCount = 0;
+  while (WiFi.status() != WL_CONNECTED && retryCount < 20) {
     delay(1000);
-    Serial.println("Conectando ao WiFi...");
+    Serial.print("Tentando conectar ao WiFi... tentativa ");
+    Serial.println(retryCount + 1);
+    retryCount++;
   }
 
-  Serial.println("Conectado ao WiFi");
-  Serial.print("Endereço IP: ");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Conectado ao WiFi");
+    Serial.print("Endereço IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("Falha ao conectar ao WiFi.");
+    esp_deep_sleep_start(); // Entrar em modo de economia de energia se não conectar
+    return;
+  }
 
   server.on("/", HTTP_OPTIONS, []() {
     sendCORSHeaders();
@@ -135,15 +188,32 @@ void setup() {
     server.send(200, "text/plain", "Buffer limpo");
   });
 
+  server.on("/setAcquisitionRate", HTTP_GET, handleSetAcquisitionRate);
   server.on("/setBlinkRate", HTTP_GET, handleSetBlinkRate);
 
   server.begin();
   Serial.println("Servidor iniciado");
 
   xTaskCreate(vADCTask, "vADCTask", 2048, NULL, 1, &vADCTaskHandle);
-  xTaskCreate(blinkTask, "blinkTask", 1024, NULL, 1, &blinkTaskHandle);
+  xTaskCreate(blinkTask, "blinkTask", 2048, NULL, 1, &blinkTaskHandle);
 }
 
 void loop() {
-  server.handleClient();
+  static int wifiReconnectAttempts = 0;
+  const int maxReconnectAttempts = 10;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    server.handleClient();
+    wifiReconnectAttempts = 0; // Reset after a successful connection
+  } else {
+    if (wifiReconnectAttempts < maxReconnectAttempts) {
+      Serial.println("WiFi desconectado, tentando reconectar...");
+      WiFi.reconnect();
+      wifiReconnectAttempts++;
+      delay(1000);
+    } else {
+      Serial.println("Falha ao reconectar, entrando em modo de economia de energia...");
+      esp_deep_sleep_start(); // Entrar em modo de economia de energia
+    }
+  }
 }
