@@ -93,7 +93,7 @@ class ChartWidget extends StatelessWidget {
         Slider(
           value: state.timeDivisions.toDouble(),
           min: 10,
-          max: 100,
+          max: 1000,
           divisions: 9,
           label: '${state.timeDivisions} ms/div',
           onChanged: (double value) {

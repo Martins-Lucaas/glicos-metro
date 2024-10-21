@@ -4,8 +4,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define LED_V 32
-#define LED_IV 33
+#define LED_V 26
+#define LED_IV 27
 #define pinvADC 34
 
 volatile uint8_t ledState = 0;
@@ -19,7 +19,7 @@ const int bufferSize = 1000;  // Número máximo de pontos no gráfico
 float vADCBuffer[bufferSize];
 int bufferIndex = 0;
 bool updatingData = false;
-int acquisitionRate = 10;  // Taxa de aquisição inicial em milissegundos
+int acquisitionRate = 1;  // Taxa de aquisição inicial em milissegundos
 
 int blinkRate = 10;  // Taxa inicial de piscar em milissegundos
 

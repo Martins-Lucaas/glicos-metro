@@ -9,7 +9,7 @@ class DataAcquisitionState with ChangeNotifier {
   final String esp32Ip;
   List<double> dataPoints = [];
   double currentValue = 0.0;
-  int acquisitionRate = 50;  // Taxa de aquisição ajustada para 50ms
+  int acquisitionRate = 1;
   bool isAcquiring = false;
   Timer? _timer;
 
